@@ -1,6 +1,9 @@
-const userModel = require("../models/user");
+const User = require("../models/user");
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 
 const register = async (req, res) => {
+    console.log('Register request received')
     const { username, email, password } = req.body;
 
     try {
@@ -29,6 +32,7 @@ const register = async (req, res) => {
 };
 
 const login = async (req, res) => {
+    console.log('Login request received')
     const { email, password } = req.body;
 
     // Check if user exists
@@ -51,6 +55,8 @@ const login = async (req, res) => {
 };
 
 const passwordreset =  async (req, res) => {
+    console.log('Password-Reset request received')
+
     const { email, oldPassword, newPassword } = req.body;
 
     // Check if user exists

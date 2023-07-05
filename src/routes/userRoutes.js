@@ -6,4 +6,4 @@ userRouter.post("/register", register);
 userRouter.post("/login", login);
 userRouter.post("/password-reset", passwordreset);
 
-module.export = userRouter;
+module.exports = userRouter;
