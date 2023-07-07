@@ -11,7 +11,9 @@ mongoose.connect('mongodb://127.0.0.1:27017/mydb', { useNewUrlParser: true, useU
 const UserSchema = new mongoose.Schema({
     username: String,
     email: String,
-    password: String
+    password: String,
+    resetPasswordCode: String,
+    resetPasswordCodeExpires: Date
 });
 const User = mongoose.model('User', UserSchema);
 
