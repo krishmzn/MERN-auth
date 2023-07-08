@@ -9,12 +9,31 @@ mongoose.connect('mongodb://127.0.0.1:27017/mydb', { useNewUrlParser: true, useU
 
 // Define User schema
 const UserSchema = new mongoose.Schema({
-    username: String,
-    email: String,
-    password: String,
+    username: {
+      type: String,
+      required: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    verificationCode: {
+      type: String,
+      required: false,
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
     resetPasswordCode: String,
     resetPasswordCodeExpires: Date
 });
+
 const User = mongoose.model('User', UserSchema);
 
 module.exports = User;
