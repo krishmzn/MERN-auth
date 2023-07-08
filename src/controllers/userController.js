@@ -1,44 +1,114 @@
 const User = require("../models/user");
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
-const register = async (req, res) => {
-  console.log('Register request received')
+require('dotenv').config();
+
+const registerRequest = async (req, res) => {
   const { username, email, password } = req.body;
+  console.log('register user request received')
 
   try {
-
-    // Check if user already exists
-    const userExists = await User.findOne({ email: email });
-    if (userExists) {
-      return res.status(400).send({ message: 'User already exists' });
+    // Check if the user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Generate a verification code
+    const verificationCode = crypto.randomBytes(3).toString('hex');
 
-    // Create new user
-    const user = new User({ username, email, password: hashedPassword });
+    // Create a new user object
+    const newUser = new User({
+      username,
+      email,
+      password: await bcrypt.hash(password, 10),
+      verificationCode,
+      isVerified: false,
+    });
+
+    // Save the new user to the database
+    await newUser.save();
+
+    // Create a nodemailer transporter for sending emails
+    const transporter = nodemailer.createTransport({
+      // Configure your email provider here
+      service: 'gmail',
+      auth: {
+        user: process.env.SMTP,
+        pass: process.env.CODE
+      },
+    });
+    
+
+    // Compose the email message
+    const mailOptions = {
+      from: 'your-email',
+      to: email,
+      subject: 'Account Verification',
+      text: `Your verification code is: ${verificationCode}`,
+    };
+
+    // Send the verification code via email
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Failed to send verification code' });
+      }
+      console.log('Verification code sent:', info.response);
+      res.json({ message: 'Verification code sent' });
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const registerVerification = async (req, res) => {
+  const { email, code } = req.body;
+  console.log('Email verification request received')
+
+  try {
+    // Find the user by email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if the provided code matches the verification code
+    if (code !== user.verificationCode) {
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+
+    // Update the user's verification status
+    user.isVerified = true;
+    user.verificationCode = null; // Optional: Clear the verification code after successful verification
     await user.save();
 
-    console.log('User Registered successfully')
-    res.send({ message: 'User registered successfully' });
-  }
-
-  catch (error) {
-    console.log(error)
-    res.send({ error })
+    res.json({ message: 'Registration completed successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
 const login = async (req, res) => {
-  console.log('Login request received')
+  console.log('Login request received');
   const { email, password } = req.body;
 
   // Check if user exists
   const user = await User.findOne({ email });
   if (!user) {
     return res.status(400).send({ message: 'Invalid email or password' });
+  }
+
+  console.log('isVerified')
+  console.log(user.isVerified)
+  // Check if user is verified
+  if (user.isVerified === false) {
+    console.log('user is not verified')
+    return res.status(400).send({ message: 'Email not verified' });
   }
 
   // Check if password is correct
@@ -50,9 +120,10 @@ const login = async (req, res) => {
   // Generate JWT token
   const token = jwt.sign({ userId: user._id }, 'mysecretkey');
 
-  console.log('Logged in successfully')
+  console.log('Logged in successfully');
   res.send({ token });
 };
+
 
 const passwordreset = async (req, res) => {
   console.log('Password-Reset request received')
@@ -106,7 +177,6 @@ const forgot = async (req, res) => {
     user.resetPasswordCodeExpires = Date.now() + 600000; // Code expiration time (10 minutes)
     await user.save();
 
-    require('dotenv').config();
 
     // Create a nodemailer transporter for sending emails
     const transporter = nodemailer.createTransport({
@@ -174,4 +244,4 @@ const forgotreset = async (req, res) => {
 
 
 
-module.exports = { register, login, passwordreset, forgot, forgotreset };
+module.exports = { registerRequest, registerVerification, login, passwordreset, forgot, forgotreset };
