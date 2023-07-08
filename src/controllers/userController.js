@@ -103,10 +103,12 @@ const login = async (req, res) => {
     return res.status(400).send({ message: 'Invalid email or password' });
   }
 
+  console.log('isVerified')
+  console.log(user.isVerified)
   // Check if user is verified
-  if (user.isVerified) {
+  if (user.isVerified === false) {
     console.log('user is not verified')
-    return res.status(400).send({ message: 'User is not verified' });
+    return res.status(400).send({ message: 'Email not verified' });
   }
 
   // Check if password is correct
