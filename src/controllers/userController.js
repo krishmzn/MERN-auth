@@ -93,6 +93,10 @@ const registerVerification = async (req, res) => {
   }
 };
 
+
+
+
+
 const login = async (req, res) => {
   console.log('Login request received');
   const { email, password } = req.body;
@@ -123,6 +127,77 @@ const login = async (req, res) => {
   console.log('Logged in successfully');
   res.send({ token });
 };
+
+
+const registerWithFacebook = async (req, res) => {
+  const { username, email, accessToken } = req.body;
+  console.log('Register with Facebook request received');
+
+  try {
+    // Check if the user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
+    const password = generatePassword(16); // generates a random 16 character 
+
+    // Create a new user object
+    const newUser = new User({
+      username,
+      email,
+      password: await bcrypt.hash(password, 10),
+      isVerified: true, // Assuming Facebook login is already verified
+    });
+
+    // Save the new user to the database
+    await newUser.save();
+
+    // Generate JWT token
+    const token = jwt.sign({ userId: newUser._id }, 'mysecretkey');
+
+    console.log('User registered suscessfully')
+    res.json({ token });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
+const passport = require('passport');
+
+const FacebookStrategy = require('passport-facebook').Strategy;
+passport.use(
+  new FacebookStrategy(
+    {
+      clientID: process.env.FACEBOOK_APP_ID,
+      clientSecret: process.env.FACEBOOK_APP_SECRET,
+      callbackURL: 'http://localhost:5000/auth/facebook/callback',
+      profileFields: ['id', 'displayName', 'email'],
+    },
+    async (accessToken, refreshToken, profile, done) => {
+      try {
+        const existingUser = await User.findOne({ email: profile.emails[0].value });
+
+        if (existingUser) {
+          const token = jwt.sign({ userId: existingUser._id }, 'mysecretkey');
+          done(null, token);
+        } else {
+          const user = {
+            username: profile.displayName,
+            email: profile.emails[0].value,
+            accessToken,
+          };
+
+          // Handle the registration process for the new user
+          registerWithFacebook({ body: user }, done);
+        }
+      } catch (error) {
+        done(error, false);
+      }
+    }
+  )
+);
 
 
 const passwordreset = async (req, res) => {
@@ -244,4 +319,10 @@ const forgotreset = async (req, res) => {
 
 
 
-module.exports = { registerRequest, registerVerification, login, passwordreset, forgot, forgotreset };
+module.exports = { registerRequest, registerVerification, login, registerWithFacebook, passwordreset, forgot, forgotreset };
+
+
+
+function generatePassword(length) {
+  return crypto.randomBytes(length).toString('hex');
+}

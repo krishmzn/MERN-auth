@@ -4,7 +4,6 @@ const cors = require('cors');
 
 const userRouter = require('./src/routes/userRoutes');
 
-
 const app = express();
 
 app.use(bodyParser.json());
